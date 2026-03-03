@@ -1,4 +1,6 @@
 import os
+import sys
+import calendar
 from datetime import datetime
 from docxtpl import DocxTemplate
 from docx import Document 
@@ -16,11 +18,32 @@ def generate_logbook():
     }
     
     now = datetime.now()
-    nama_bulan_ini = bulan_indo[now.month]
-    tahun_ini = now.year
     
-    # Output path dinamis berdasarkan bulan
-    output_path = f"Logbook_{nama_bulan_ini}_Richie.docx"
+    # Ambil bulan dari parameter command line (lewat .bat)
+    if len(sys.argv) > 1 and sys.argv[1].isdigit():
+        bulan_target = int(sys.argv[1])
+        if bulan_target < 1 or bulan_target > 12:
+            print(f"Bulan {bulan_target} tidak valid! Menggunakan bulan ini ({now.month}).")
+            bulan_target = now.month
+    else:
+        bulan_target = now.month # Default ke bulan saat ini
+
+    # Fix tahun ke 2026
+    tahun_target = 2026
+    
+    nama_bulan_ini = bulan_indo[bulan_target]
+    tahun_ini = tahun_target
+    
+    # Tanggal dan bulan tanda tangan menggunakan waktu saat ini digenerate
+    tanggal_tanda_tangan = now.day
+    nama_bulan_ttd = bulan_indo[now.month]
+    tahun_ttd = now.year
+    
+    # Tentukan nama Anda (Bisa diganti sesuai nama pengguna)
+    NAMA_PENGGUNA = "Nikolaus"
+    
+    # Output path dinamis berdasarkan bulan yang dipilih
+    output_path = f"Logbook_{nama_bulan_ini}_{NAMA_PENGGUNA}.docx"
     
     # Cek kelengkapan
     if not os.path.exists(template_path):
@@ -34,9 +57,11 @@ def generate_logbook():
     doc_tpl = DocxTemplate(template_path)
     
     # Context untuk variabel Header/Footer
+    # judul_logbook menggunakan bulan yang diinput
+    # tanggal_ttd menggunakan waktu saat file ini digenerate
     context = {
-        'judul_logbook': f"{nama_bulan_ini} {tahun_ini}", # Otomatis!
-        'tanggal_ttd': f"{now.day} {nama_bulan_ini} {tahun_ini}" 
+        'judul_logbook': f"{nama_bulan_ini} {tahun_ini}", 
+        'tanggal_ttd': f"{tanggal_tanda_tangan} {nama_bulan_ttd} {tahun_ttd}" 
     }
     
     print("Merenender Header/Footer...")
@@ -45,8 +70,13 @@ def generate_logbook():
     doc_tpl.save(temp_path)
     
     # --- 3. ISI TABEL MANUAL (PYTHON-DOCX) ---
-    print("Mengisi tabel dengan gambar...")
+    print(f"Mengisi tabel dengan gambar untuk bulan {nama_bulan_ini} {tahun_ini}...")
     doc = Document(temp_path)
+    
+    # Set page size ke A4 (210mm x 297mm)
+    for section in doc.sections:
+        section.page_width = Mm(210)
+        section.page_height = Mm(297)
     
     # Fungsi Helper untuk Styling Text (Font & Alignment)
     from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -64,8 +94,8 @@ def generate_logbook():
     # Ambil tabel pertama
     table = doc.tables[0]
     
-    # List hari kerja (Senin - Jumat) untuk looping
-    hari_kerja = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat']
+    # Mapping Nama Hari
+    nama_hari_indo = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 
     # Ambil data gambar
     files = sorted([f for f in os.listdir(image_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
@@ -81,44 +111,39 @@ def generate_logbook():
             desc_raw = parts[1]
             kegiatan = desc_raw.rsplit('.', 1)[0]
             
-            # Loop hari kerja: Senin, Selasa, Rabu, Kamis, Jumat, Senin, ...
-            nama_hari = hari_kerja[(index - 1) % 5]
-            full_date = f"{nama_hari}, {int(tgl_str)} {nama_bulan_ini} {tahun_ini}"
+            # Cari hari berdasarkan tanggal aktual
+            tgl_int = int(tgl_str)
+            try:
+                tgl_obj = datetime(tahun_ini, bulan_target, tgl_int)
+                nama_hari = nama_hari_indo[tgl_obj.weekday()]
+            except ValueError:
+                nama_hari = "Hari Tidak Valid"
+                
+            # Full_date di tabel menggunakan bulan yang diset (bulan_target)
+            full_date = f"{nama_hari}, {tgl_int} {nama_bulan_ini} {tahun_ini}"
             
             # Tambah Row Baru
             row = table.add_row()
             
             # Isi Cell dengan Styling
-            # Col 0: No (Center)
             fill_cell(row.cells[0], str(index), align=WD_ALIGN_PARAGRAPH.CENTER)
-            
-            # Col 1: Tanggal (Center/Left? Kita set Center biar rapi)
             fill_cell(row.cells[1], full_date, align=WD_ALIGN_PARAGRAPH.CENTER)
-            
-            # Col 2: Kegiatan (Left, Justify)
             fill_cell(row.cells[2], kegiatan, align=WD_ALIGN_PARAGRAPH.LEFT)
             
             # Col 3: Gambar (Center)
             cell_img = row.cells[3]
             p_img = cell_img.paragraphs[0]
-            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER # Center Gambar
+            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
             p_img.clear()
             run_img = p_img.add_run()
             
             img_path = os.path.join(image_folder, filename)
-            # EDIT UKURAN GAMBAR DISINI (width=Mm(45))
             run_img.add_picture(img_path, width=Mm(60)) 
             
             print(f"  [OK] No {index}: {kegiatan}")
 
         except ValueError as e:
             print(f"Warning: Error pada file '{filename}': {e}")
-            
-    # Set Width (Penting diulang agar tabel tidak 'layu')
-    widths = [Cm(1), Cm(4), Cm(6), Cm(5)]
-    for row in table.rows:
-        for idx, width in enumerate(widths):
-            row.cells[idx].width = width
 
     doc.save(output_path)
     

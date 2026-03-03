@@ -18,8 +18,8 @@ def create_template():
     p_title.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_title.style.font.bold = True
     
-    # Richie Lagito
-    p_name = doc.add_paragraph('Richie Lagito')
+    # Nikolaus Nathaniel
+    p_name = doc.add_paragraph('Nikolaus Nathaniel')
     p_name.alignment = WD_ALIGN_PARAGRAPH.CENTER
     p_name.style.font.bold = True
     
