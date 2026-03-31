@@ -97,53 +97,100 @@ def generate_logbook():
     # Mapping Nama Hari
     nama_hari_indo = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
 
-    # Ambil data gambar
+    # Ambil jumlah hari di bulan dan tahun yang diset
+    _, num_days = calendar.monthrange(tahun_ini, bulan_target)
+
+    # Inisialisasi daftar hari libur nasional Indonesia
+    import holidays
+    id_holidays = holidays.ID(years=tahun_ini)
+
+    # Ambil data gambar dan kelompokkan per tanggal
     files = sorted([f for f in os.listdir(image_folder) if f.lower().endswith(('.png', '.jpg', '.jpeg'))])
     print(f"Ditemukan {len(files)} file gambar.")
 
-    for index, filename in enumerate(files, start=1):
-        try:
-            parts = filename.split('_', 1) 
-            if len(parts) < 2:
-                continue
-                
-            tgl_str = parts[0]
+    images_by_date = {}
+    for filename in files:
+        parts = filename.split('_', 1)
+        if len(parts) >= 2:
+            try:
+                tgl_int = int(parts[0])
+                images_by_date[tgl_int] = filename
+            except ValueError:
+                pass
+
+    print(f"Mengisi tabel untuk {num_days} hari di bulan {nama_bulan_ini} {tahun_ini}...")
+
+    # Variabel penghitung nomor urut di tabel
+    nomor_urut = 1
+
+    # Loop berdasarkan jumlah kalender
+    for day in range(1, num_days + 1):
+        # Tentukan nama hari
+        tgl_obj = datetime(tahun_ini, bulan_target, day)
+        
+        # --- PERIKSA HARI LIBUR & AKHIR PEKAN ---
+        # 1. Skip jika hari Sabtu (5) atau Minggu (6)
+        if tgl_obj.weekday() >= 5:
+            print(f"  [-] Tanggal {day}: (Abaikan, Akhir Pekan)")
+            continue
+            
+        # 2. Skip jika hari libur nasional
+        if tgl_obj in id_holidays:
+            nama_libur = id_holidays.get(tgl_obj)
+            print(f"  [-] Tanggal {day}: (Abaikan, Libur Nasional: {nama_libur})")
+            continue
+            
+        nama_hari = nama_hari_indo[tgl_obj.weekday()]
+        
+        full_date = f"{nama_hari}, {day} {nama_bulan_ini} {tahun_ini}"
+        
+        # Cek apakah ada gambar dan kegiatan untuk tanggal ini
+        has_image = False
+        kegiatan = ""
+        img_path = None
+        
+        if day in images_by_date:
+            filename = images_by_date[day]
+            parts = filename.split('_', 1)
             desc_raw = parts[1]
             kegiatan = desc_raw.rsplit('.', 1)[0]
-            
-            # Cari hari berdasarkan tanggal aktual
-            tgl_int = int(tgl_str)
-            try:
-                tgl_obj = datetime(tahun_ini, bulan_target, tgl_int)
-                nama_hari = nama_hari_indo[tgl_obj.weekday()]
-            except ValueError:
-                nama_hari = "Hari Tidak Valid"
-                
-            # Full_date di tabel menggunakan bulan yang diset (bulan_target)
-            full_date = f"{nama_hari}, {tgl_int} {nama_bulan_ini} {tahun_ini}"
-            
-            # Tambah Row Baru
-            row = table.add_row()
-            
-            # Isi Cell dengan Styling
-            fill_cell(row.cells[0], str(index), align=WD_ALIGN_PARAGRAPH.CENTER)
-            fill_cell(row.cells[1], full_date, align=WD_ALIGN_PARAGRAPH.CENTER)
-            fill_cell(row.cells[2], kegiatan, align=WD_ALIGN_PARAGRAPH.LEFT)
-            
-            # Col 3: Gambar (Center)
-            cell_img = row.cells[3]
-            p_img = cell_img.paragraphs[0]
-            p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
-            p_img.clear()
-            run_img = p_img.add_run()
-            
             img_path = os.path.join(image_folder, filename)
-            run_img.add_picture(img_path, width=Mm(60)) 
+            has_image = True
             
-            print(f"  [OK] No {index}: {kegiatan}")
-
-        except ValueError as e:
-            print(f"Warning: Error pada file '{filename}': {e}")
+        # Tambah Row Baru
+        row = table.add_row()
+        
+        # Isi Cell dengan Styling
+        fill_cell(row.cells[0], str(nomor_urut), align=WD_ALIGN_PARAGRAPH.CENTER)
+        fill_cell(row.cells[1], full_date, align=WD_ALIGN_PARAGRAPH.CENTER)
+        fill_cell(row.cells[2], kegiatan, align=WD_ALIGN_PARAGRAPH.LEFT)
+        
+        # Col 3: Gambar (Center)
+        from docx.enum.table import WD_ALIGN_VERTICAL
+        cell_img = row.cells[3]
+        cell_img.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Rata tengah vertikal
+        
+        p_img = cell_img.paragraphs[0]
+        p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_img.paragraph_format.space_before = Pt(12) # Jarak atas (enter)
+        p_img.paragraph_format.space_after = Pt(12)  # Jarak bawah (enter)
+        p_img.clear()
+        
+        
+        if has_image:
+            try:
+                run_img = p_img.add_run()
+                run_img.add_picture(img_path, width=Mm(60)) 
+                print(f"  [OK] No {nomor_urut} - Tanggal {day}: {kegiatan}")
+            except Exception as e:
+                print(f"  [WARNING] Error pada gambar '{filename}': {e}")
+                fill_cell(cell_img, "-", align=WD_ALIGN_PARAGRAPH.CENTER)
+        else:
+            fill_cell(cell_img, "-", align=WD_ALIGN_PARAGRAPH.CENTER)
+            print(f"  [-] No {nomor_urut} - Tanggal {day}: (Kosong)")
+            
+        # Increment nomor urut untuk hari kerja berikutnya
+        nomor_urut += 1
 
     doc.save(output_path)
     
