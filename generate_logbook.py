@@ -166,19 +166,26 @@ def generate_logbook():
         fill_cell(row.cells[2], kegiatan, align=WD_ALIGN_PARAGRAPH.LEFT)
         
         # Col 3: Gambar (Center)
+        from docx.enum.table import WD_ALIGN_VERTICAL
         cell_img = row.cells[3]
+        cell_img.vertical_alignment = WD_ALIGN_VERTICAL.CENTER # Rata tengah vertikal
+        
         p_img = cell_img.paragraphs[0]
         p_img.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        p_img.paragraph_format.space_before = Pt(12) # Jarak atas (enter)
+        p_img.paragraph_format.space_after = Pt(12)  # Jarak bawah (enter)
         p_img.clear()
         
         if has_image:
-            run_img = p_img.add_run()
             try:
+                run_img = p_img.add_run()
                 run_img.add_picture(img_path, width=Mm(60)) 
                 print(f"  [OK] No {nomor_urut} - Tanggal {day}: {kegiatan}")
             except Exception as e:
                 print(f"  [WARNING] Error pada gambar '{filename}': {e}")
+                fill_cell(cell_img, "-", align=WD_ALIGN_PARAGRAPH.CENTER)
         else:
+            fill_cell(cell_img, "-", align=WD_ALIGN_PARAGRAPH.CENTER)
             print(f"  [-] No {nomor_urut} - Tanggal {day}: (Kosong)")
             
         # Increment nomor urut untuk hari kerja berikutnya
