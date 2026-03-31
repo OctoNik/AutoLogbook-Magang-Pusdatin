@@ -176,6 +176,7 @@ def generate_logbook():
         p_img.paragraph_format.space_after = Pt(12)  # Jarak bawah (enter)
         p_img.clear()
         
+        
         if has_image:
             try:
                 run_img = p_img.add_run()
