@@ -6,18 +6,41 @@ echo ===================================================
 echo             AUTO LOGBOOK GENERATOR 2026
 echo ===================================================
 echo.
+
+:: 1. Cek apakah Python terinstall
+where python >nul 2>nul
+if %errorlevel% neq 0 (
+    echo [ERROR] Python tidak ditemukan di laptop ini!
+    echo Silakan install Python terlebih dahulu dan pastikan mencentang "Add Python to PATH".
+    echo.
+    pause
+    exit /b
+)
+
 set /p bulan_input="Masukkan Angka Bulan untuk Logbook (1-12) [Enter untuk bulan ini]: "
 
 echo.
-echo Menuju folder OneDrive PUSDATIN...
+echo Menuju folder script...
 
-:: Pindah ke folder script di OneDrive (GANTI PATH INI DENGAN PATH FOLDER ANDA)
-:: Contoh: cd /d "C:\Users\NamaUser\Documents\AutoLog"
-cd /d "C:\Users\PUSDATIN 01\OneDrive\OneDrive - Universitas Tarumanagara\PUSDATIN\Auto Logbook\AutoLog"
+:: Pindah ke folder script saat ini secara dinamis (menggunakan %~dp0)
+cd /d "%~dp0"
+
+:: 2. Cek apakah library python-docx, docxtpl, dan holidays sudah terinstall di sistem
+echo Memeriksa library pendukung...
+python -c "import docxtpl, docx, holidays" >nul 2>nul
+if %errorlevel% neq 0 (
+    echo Library belum lengkap. Menginstal python-docx, docxtpl, dan holidays ke Python sistem...
+    python -m pip install python-docx docxtpl holidays
+    if %errorlevel% neq 0 (
+        echo [ERROR] Gagal menginstal library! Pastikan laptop terhubung ke internet.
+        pause
+        exit /b
+    )
+)
 
 echo Menjalankan Auto Logbook...
-:: Sisipkan input bulan target ke dalam argument Python
-powershell -ExecutionPolicy Bypass -Command ".\venv\Scripts\Activate.ps1; python generate_logbook.py %bulan_input%"
+:: Jalankan langsung dengan Python sistem
+python generate_logbook.py %bulan_input%
 
 echo.
 echo Mencari dan membuka file logbook terbaru...
