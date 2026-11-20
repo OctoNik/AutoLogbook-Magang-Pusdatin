@@ -18,6 +18,7 @@ if %errorlevel% neq 0 (
 )
 
 set /p bulan_input="Masukkan Angka Bulan untuk Logbook (1-12) [Enter untuk bulan ini]: "
+set /p tanggal_input="Masukkan Tanggal Masuk (cth: 1-15 atau 2,5,10-12) [Enter untuk 1 bulan penuh]: "
 
 echo.
 echo Menuju folder script...
@@ -40,7 +41,7 @@ if %errorlevel% neq 0 (
 
 echo Menjalankan Auto Logbook...
 :: Jalankan langsung dengan Python sistem
-python generate_logbook.py %bulan_input%
+python generate_logbook.py "%bulan_input%" "%tanggal_input%"
 
 echo.
 echo Mencari dan membuka file logbook terbaru...
