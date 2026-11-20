@@ -137,6 +137,7 @@ def generate_logbook():
             run = p.add_run(f"{idx + 1}. {text}")
             run.font.name = 'Times New Roman'
             run.font.size = Pt(12)
+            run.font.bold = False
 
     # Ambil tabel pertama
     table = doc.tables[0]
@@ -233,8 +234,8 @@ def generate_logbook():
                     p_img.paragraph_format.space_before = Pt(12)
                     p_img.paragraph_format.space_after = Pt(12)
                 else:
-                    p_img.paragraph_format.space_before = Pt(10) if idx == 0 else Pt(4)
-                    p_img.paragraph_format.space_after = Pt(10) if idx == total_imgs - 1 else Pt(6)
+                    p_img.paragraph_format.space_before = Pt(12) if idx == 0 else Pt(14)
+                    p_img.paragraph_format.space_after = Pt(12) if idx == total_imgs - 1 else Pt(14)
                 if idx == 0:
                     p_img.clear()
                 try:
